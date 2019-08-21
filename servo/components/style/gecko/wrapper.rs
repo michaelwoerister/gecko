@@ -289,60 +289,15 @@ impl<'ln> GeckoNode<'ln> {
         self.bool_flags() & (1u32 << flag as u32) != 0
     }
 
-    /// This logic is duplicate in Gecko's nsINode::IsInShadowTree().
     #[inline]
     fn is_in_shadow_tree(&self) -> bool {
-        use crate::gecko_bindings::structs::NODE_IS_IN_SHADOW_TREE;
-        self.flags() & (NODE_IS_IN_SHADOW_TREE as u32) != 0
-    }
-
-    /// WARNING: This logic is duplicated in Gecko's FlattenedTreeParentIsParent.
-    /// Make sure to mirror any modifications in both places.
-    #[inline]
-    fn flattened_tree_parent_is_parent(&self) -> bool {
-        use crate::gecko_bindings::structs::*;
-        let flags = self.flags();
-        if flags & (NODE_MAY_BE_IN_BINDING_MNGR as u32 | NODE_IS_IN_SHADOW_TREE as u32) != 0 {
-            return false;
+        unsafe {
+            bindings::Gecko_IsInShadowTree(self.0)
         }
-
-        let parent = unsafe { self.0.mParent.as_ref() }.map(GeckoNode);
-        let parent_el = parent.and_then(|p| p.as_element());
-        if flags & (NODE_IS_NATIVE_ANONYMOUS_ROOT as u32) != 0 &&
-            parent_el.map_or(false, |el| el.is_root())
-        {
-            return false;
-        }
-
-        if let Some(parent) = parent_el {
-            if parent.shadow_root().is_some() || parent.xbl_binding().is_some() {
-                return false;
-            }
-        }
-
-        true
     }
 
     #[inline]
     fn flattened_tree_parent(&self) -> Option<Self> {
-        // TODO(emilio): Measure and consider not doing this fast-path and take
-        // always the common path, it's only a function call and from profiles
-        // it seems that keeping this fast path makes the compiler not inline
-        // `flattened_tree_parent`.
-        if self.flattened_tree_parent_is_parent() {
-            debug_assert_eq!(
-                unsafe {
-                    bindings::Gecko_GetFlattenedTreeParentNode(self.0)
-                        .as_ref()
-                        .map(GeckoNode)
-                },
-                self.parent_node(),
-                "Fast path stopped holding!"
-            );
-
-            return self.parent_node();
-        }
-
         // NOTE(emilio): If this call is too expensive, we could manually
         // inline more aggressively.
         unsafe {
@@ -706,44 +661,6 @@ impl<'le> GeckoElement<'le> {
         !self.xbl_binding_with_content().is_none()
     }
 
-    /// This duplicates the logic in Gecko's virtual nsINode::GetBindingParent
-    /// function, which only has two implementations: one for XUL elements, and
-    /// one for other elements.
-    ///
-    /// We just hard code in our knowledge of those two implementations here.
-    fn xbl_binding_parent(&self) -> Option<Self> {
-        if self.is_xul_element() {
-            // FIXME(heycam): Having trouble with bindgen on nsXULElement,
-            // where the binding parent is stored in a member variable
-            // rather than in slots.  So just get it through FFI for now.
-            unsafe {
-                bindings::Gecko_GetBindingParent(self.0)
-                    .as_ref()
-                    .map(GeckoElement)
-            }
-        } else {
-            let binding_parent =
-                unsafe { self.non_xul_xbl_binding_parent().as_ref() }.map(GeckoElement);
-
-            debug_assert!(
-                binding_parent ==
-                    unsafe {
-                        bindings::Gecko_GetBindingParent(self.0)
-                            .as_ref()
-                            .map(GeckoElement)
-                    }
-            );
-            binding_parent
-        }
-    }
-
-    #[inline]
-    fn non_xul_xbl_binding_parent(&self) -> *mut RawGeckoElement {
-        debug_assert!(!self.is_xul_element());
-        self.extended_slots()
-            .map_or(ptr::null_mut(), |slots| slots._base.mBindingParent.mRawPtr)
-    }
-
     #[inline]
     fn namespace_id(&self) -> i32 {
         self.as_node().node_info().mInner.mNamespaceID
@@ -851,33 +768,25 @@ impl<'le> GeckoElement<'le> {
         data.damage |= damage;
     }
 
-    /// This logic is duplicated in Gecko's nsIContent::IsRootOfAnonymousSubtree.
     #[inline]
     fn is_root_of_anonymous_subtree(&self) -> bool {
-        use crate::gecko_bindings::structs::NODE_IS_ANONYMOUS_ROOT;
-        self.flags() & (NODE_IS_ANONYMOUS_ROOT as u32) != 0
+        unsafe {
+            bindings::Gecko_IsRootOfAnonymousSubtree(self.0)
+        }
     }
 
-    /// This logic is duplicated in Gecko's nsIContent::IsRootOfNativeAnonymousSubtree.
     #[inline]
     fn is_root_of_native_anonymous_subtree(&self) -> bool {
-        use crate::gecko_bindings::structs::NODE_IS_NATIVE_ANONYMOUS_ROOT;
-        return self.flags() & (NODE_IS_NATIVE_ANONYMOUS_ROOT as u32) != 0;
+        unsafe {
+            bindings::Gecko_IsRootOfNativeAnonymousSubtree(self.0)
+        }
     }
 
-    /// This logic is duplicated in Gecko's nsIContent::IsInAnonymousSubtree.
     #[inline]
     fn is_in_anonymous_subtree(&self) -> bool {
-        if self.is_in_native_anonymous_subtree() {
-            return true;
+        unsafe {
+            bindings::Gecko_IsInAnonymousSubtree(self.0)
         }
-
-        let binding_parent = match self.xbl_binding_parent() {
-            Some(p) => p,
-            None => return false,
-        };
-
-        binding_parent.shadow_root().is_none()
     }
 
     /// Returns true if this node is the shadow root of an use-element shadow tree.
@@ -1443,11 +1352,11 @@ impl<'le> TElement for GeckoElement<'le> {
         self.state().intersects(ElementState::IN_VISITED_STATE)
     }
 
-    /// This logic is duplicated in Gecko's nsINode::IsInNativeAnonymousSubtree.
     #[inline]
     fn is_in_native_anonymous_subtree(&self) -> bool {
-        use crate::gecko_bindings::structs::NODE_IS_IN_NATIVE_ANONYMOUS_SUBTREE;
-        self.flags() & (NODE_IS_IN_NATIVE_ANONYMOUS_SUBTREE as u32) != 0
+        unsafe {
+            bindings::Gecko_IsInNativeAnonymousSubtree(self.as_node().0)
+        }
     }
 
     #[inline]

@@ -75,11 +75,18 @@ bool Gecko_IsSignificantChild(const nsINode*, bool whitespace_is_significant);
 const nsINode* Gecko_GetLastChild(const nsINode*);
 const nsINode* Gecko_GetPreviousSibling(const nsINode*);
 
+bool Gecko_IsInShadowTree(const nsINode*);
+
 const nsINode* Gecko_GetFlattenedTreeParentNode(const nsINode*);
 const mozilla::dom::Element* Gecko_GetBeforeOrAfterPseudo(
     const mozilla::dom::Element*, bool is_before);
 const mozilla::dom::Element* Gecko_GetMarkerPseudo(
     const mozilla::dom::Element*);
+
+bool Gecko_IsInNativeAnonymousSubtree(const nsINode*);
+bool Gecko_IsRootOfAnonymousSubtree(const mozilla::dom::Element*);
+bool Gecko_IsRootOfNativeAnonymousSubtree(const mozilla::dom::Element*);
+bool Gecko_IsInAnonymousSubtree(const mozilla::dom::Element*);
 
 nsTArray<nsIContent*>* Gecko_GetAnonymousContentForElement(
     const mozilla::dom::Element*);

@@ -133,6 +133,10 @@ const nsINode* Gecko_GetPreviousSibling(const nsINode* aNode) {
   return aNode->GetPreviousSibling();
 }
 
+bool Gecko_IsInShadowTree(const nsINode* aNode) {
+  return aNode->IsInShadowTree();
+}
+
 const nsINode* Gecko_GetFlattenedTreeParentNode(const nsINode* aNode) {
   return aNode->GetFlattenedTreeParentNodeForStyle();
 }
@@ -151,6 +155,22 @@ const Element* Gecko_GetMarkerPseudo(const Element* aElement) {
   MOZ_ASSERT(aElement->HasProperties());
 
   return nsLayoutUtils::GetMarkerPseudo(aElement);
+}
+
+bool Gecko_IsInNativeAnonymousSubtree(const nsINode* aNode) {
+  return aNode->IsInNativeAnonymousSubtree();
+}
+
+bool Gecko_IsRootOfAnonymousSubtree(const Element* aElement) {
+  return aElement->IsRootOfAnonymousSubtree();
+}
+
+bool Gecko_IsRootOfNativeAnonymousSubtree(const Element* aElement) {
+  return aElement->IsRootOfNativeAnonymousSubtree();
+}
+
+bool Gecko_IsInAnonymousSubtree(const Element* aElement) {
+  return aElement->IsInAnonymousSubtree();
 }
 
 nsTArray<nsIContent*>* Gecko_GetAnonymousContentForElement(
